@@ -1,16 +1,13 @@
 
 <img width="815" height="689" alt="Logo" src="https://github.com/user-attachments/assets/225f1ade-d37a-4c94-9340-75532048a337" />
 
+<img width="1916" height="1080" alt="Page Page" src="https://github.com/user-attachments/assets/249b4ac5-9801-49f3-8378-b1a41fb7931d" />
 
-<img width="1916" height="1080" alt="App Page" src="https://github.com/user-attachments/assets/7a9cce1e-347d-41b6-8d40-357f74034e85" />
 
 #  Live App Demo :-- 
 
 
 https://github.com/user-attachments/assets/cfb0bac1-e54e-48df-bcbc-6b493a4f22db
-
-
-
 
 # 🚀 **TechSeva AI Researcher**
 
