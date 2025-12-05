@@ -11,4 +11,3 @@ gTTS
 python-docx
 graphviz
 typing-extensions
-
