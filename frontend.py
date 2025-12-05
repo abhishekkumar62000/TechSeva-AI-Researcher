@@ -1,5 +1,5 @@
 import streamlit as st
-from ai_researcher_2 import INITIAL_PROMPT, graph, config
+from ai_researcher_2 import INITIAL_PROMPT, config # Removed 'graph' import as it's no longer global
 from pathlib import Path
 import logging
 import os
@@ -172,6 +172,12 @@ with st.sidebar:
 
     # Settings
     with st.expander("⚙️ Settings", expanded=True):
+        st.text_input(
+            "🔑 Google API Key",
+            type="password",
+            help="Get your key from https://aistudio.google.com/",
+            key="api_key",
+        )
         model_type = st.selectbox("AI Model", ["Gemini 2.5 Pro", "Gemini 1.5 Flash (Fast)"])
         research_depth = st.select_slider("Depth", options=["Overview", "Standard", "Deep Dive"], value="Standard")
         
@@ -193,17 +199,17 @@ with st.sidebar:
     # Knowledge Graph Visualization
     if st.session_state.research_graph["nodes"]:
         st.markdown("### 🕸️ Knowledge Graph")
-        graph = graphviz.Digraph()
-        graph.attr(bgcolor='transparent')
-        graph.attr('node', style='filled', fillcolor='#4F46E5', fontcolor='white', color='white')
-        graph.attr('edge', color='white')
+        graph_viz = graphviz.Digraph()
+        graph_viz.attr(bgcolor='transparent')
+        graph_viz.attr('node', style='filled', fillcolor='#4F46E5', fontcolor='white', color='white')
+        graph_viz.attr('edge', color='white')
         
         for node in st.session_state.research_graph["nodes"]:
-            graph.node(node)
+            graph_viz.node(node)
         for edge in st.session_state.research_graph["edges"]:
-            graph.edge(edge[0], edge[1])
+            graph_viz.edge(edge[0], edge[1])
             
-        st.graphviz_chart(graph)
+        st.graphviz_chart(graph_viz)
 
     # Clear Chat
     if st.button("🗑️ Reset Research Session", use_container_width=True):
@@ -268,89 +274,96 @@ if not user_input:
     user_input = st.chat_input("Ask me to research anything...")
 
 if user_input:
-    # Add user message
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
-    with st.chat_message("user", avatar="👤"):
-        st.markdown(user_input)
+    api_key_val = st.session_state.get("api_key")
+    if not api_key_val:
+        st.warning("⚠️ Please enter your Google API Key in the settings sidebar to proceed.")
+    else:
+        # Add user message
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(user_input)
 
-    # Prepare input for the agent
-    # Inject Language, Persona, and Critical Mode Instructions
-    system_prompt = INITIAL_PROMPT
-    
-    # Language
-    if output_language != "English":
-        system_prompt += f"\n\nIMPORTANT: Please write your final response and any research papers in {output_language}."
-    
-    # Persona
-    if "Professor" in persona:
-        system_prompt += "\n\nSTYLE: Adopt the persona of a distinguished Professor. Be academic, rigorous, and use formal language."
-    elif "Journalist" in persona:
-        system_prompt += "\n\nSTYLE: Adopt the persona of a Science Journalist. Be engaging, storytelling-driven, and accessible to the general public."
-    elif "Skeptic" in persona:
-        system_prompt += "\n\nSTYLE: Adopt the persona of a Skeptic. Question assumptions, look for methodological flaws, and be critical of claims."
-    elif "ELI5" in persona:
-        system_prompt += "\n\nSTYLE: Explain Like I'm 5. Use simple analogies, avoid jargon, and make it very easy to understand."
-
-    # Critical Mode
-    if critical_mode:
-        system_prompt += "\n\nMODE: CRITICAL REVIEW. For every paper you analyze, provide a SWOT Analysis (Strengths, Weaknesses, Opportunities, Threats)."
-
-    messages_for_agent = [{"role": "system", "content": system_prompt}]
-    for msg in st.session_state.chat_history:
-        if msg["role"] != "system":
-             messages_for_agent.append(msg)
-
-    chat_input = {"messages": messages_for_agent}
-    
-    logger.info("Starting agent processing...")
-
-    # Stream response
-    with st.chat_message("assistant", avatar="🧬"):
-        message_placeholder = st.empty()
-        full_response = ""
+        # Prepare input for the agent
+        # Inject Language, Persona, and Critical Mode Instructions
+        system_prompt = INITIAL_PROMPT
         
-        with st.status("🧠 **Thinking & Researching...**", expanded=True) as status:
-            try:
-                from ai_researcher_2 import graph as agent_graph
-                
-                for event in agent_graph.stream(chat_input, config, stream_mode="values"):
-                    message = event["messages"][-1]
-                    
-                    if getattr(message, "tool_calls", None):
-                        for tool_call in message.tool_calls:
-                            status.write(f"🔍 **Searching:** `{tool_call['name']}`")
-                            logger.info(f"Tool call: {tool_call['name']}")
-                            
-                            if tool_call['name'] == 'arxiv_search':
-                                topic = tool_call['args'].get('topic', 'Unknown Topic')
-                                st.session_state.research_graph["nodes"].add("Research")
-                                st.session_state.research_graph["nodes"].add(topic)
-                                st.session_state.research_graph["edges"].add(("Research", topic))
-                    
-                    if message.type == "tool":
-                        if message.name == "render_latex_pdf":
-                            pdf_path = message.content
-                            status.write(f"📄 **PDF Generated:** `{os.path.basename(pdf_path)}`")
-                            if not any(p['path'] == pdf_path for p in st.session_state.generated_papers):
-                                st.session_state.generated_papers.append({
-                                    'path': pdf_path,
-                                    'topic': "New Research Paper"
-                                })
-                        elif message.name == "arxiv_search":
-                             status.write(f"✅ **Arxiv Results Received**")
-                        else:
-                            status.write(f"✅ **Data Received** from `{message.name}`")
+        # Language
+        if output_language != "English":
+            system_prompt += f"\n\nIMPORTANT: Please write your final response and any research papers in {output_language}."
+        
+        # Persona
+        if "Professor" in persona:
+            system_prompt += "\n\nSTYLE: Adopt the persona of a distinguished Professor. Be academic, rigorous, and use formal language."
+        elif "Journalist" in persona:
+            system_prompt += "\n\nSTYLE: Adopt the persona of a Science Journalist. Be engaging, storytelling-driven, and accessible to the general public."
+        elif "Skeptic" in persona:
+            system_prompt += "\n\nSTYLE: Adopt the persona of a Skeptic. Question assumptions, look for methodological flaws, and be critical of claims."
+        elif "ELI5" in persona:
+            system_prompt += "\n\nSTYLE: Explain Like I'm 5. Use simple analogies, avoid jargon, and make it very easy to understand."
 
-                    if isinstance(message, AIMessage) and message.content:
-                        if not message.tool_calls:
-                            full_response = message.content
-                            message_placeholder.markdown(full_response + "▌")
-                
-                status.update(label="**Research Complete!**", state="complete", expanded=False)
+        # Critical Mode
+        if critical_mode:
+            system_prompt += "\n\nMODE: CRITICAL REVIEW. For every paper you analyze, provide a SWOT Analysis (Strengths, Weaknesses, Opportunities, Threats)."
+
+        messages_for_agent = [{"role": "system", "content": system_prompt}]
+        for msg in st.session_state.chat_history:
+            if msg["role"] != "system":
+                 messages_for_agent.append(msg)
+
+        chat_input = {"messages": messages_for_agent}
+        
+        logger.info("Starting agent processing...")
+
+        # Stream response
+        with st.chat_message("assistant", avatar="🧬"):
+            message_placeholder = st.empty()
+            full_response = ""
             
-            except Exception as e:
-                status.update(label="❌ **Error**", state="error")
-                st.error(f"An error occurred: {str(e)}")
+            with st.status("🧠 **Thinking & Researching...**", expanded=True) as status:
+                try:
+                    from ai_researcher_2 import get_graph
+                    
+                    # Initialize graph with user-provided key from sidebar
+                    agent_graph = get_graph(api_key_val)
+                    
+                    for event in agent_graph.stream(chat_input, config, stream_mode="values"):
+                        message = event["messages"][-1]
+                        
+                        if getattr(message, "tool_calls", None):
+                            for tool_call in message.tool_calls:
+                                status.write(f"🔍 **Searching:** `{tool_call['name']}`")
+                                logger.info(f"Tool call: {tool_call['name']}")
+                                
+                                if tool_call['name'] == 'arxiv_search':
+                                    topic = tool_call['args'].get('topic', 'Unknown Topic')
+                                    st.session_state.research_graph["nodes"].add("Research")
+                                    st.session_state.research_graph["nodes"].add(topic)
+                                    st.session_state.research_graph["edges"].add(("Research", topic))
+                        
+                        if message.type == "tool":
+                            if message.name == "render_latex_pdf":
+                                pdf_path = message.content
+                                status.write(f"📄 **PDF Generated:** `{os.path.basename(pdf_path)}`")
+                                if not any(p['path'] == pdf_path for p in st.session_state.generated_papers):
+                                    st.session_state.generated_papers.append({
+                                        'path': pdf_path,
+                                        'topic': "New Research Paper"
+                                    })
+                            elif message.name == "arxiv_search":
+                                 status.write(f"✅ **Arxiv Results Received**")
+                            else:
+                                status.write(f"✅ **Data Received** from `{message.name}`")
+
+                        if isinstance(message, AIMessage) and message.content:
+                            if not message.tool_calls:
+                                full_response = message.content
+                                message_placeholder.markdown(full_response + "▌")
+                    
+                    status.update(label="**Research Complete!**", state="complete", expanded=False)
+            
+                except Exception as e:
+                    status.update(label="❌ **Error**", state="error")
+                    st.error(f"An error occurred: {str(e)}")
         
         # Final update
         message_placeholder.markdown(full_response)

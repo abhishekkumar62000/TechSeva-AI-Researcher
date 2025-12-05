@@ -4,14 +4,21 @@ from langgraph.prebuilt import create_react_agent
 from arxiv_tool import arxiv_search
 from read_pdf import read_pdf
 from write_pdf import render_latex_pdf
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Step2: Setup LLM and tools
 tools = [arxiv_search, read_pdf, render_latex_pdf]
-model = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Ask for API key at runtime instead of reading from .env
+api_key = None
+while not api_key:
+    try:
+        api_key = input("Enter Google API Key: ").strip()
+    except EOFError:
+        api_key = ""
+    if not api_key:
+        print("API key is required. Please try again.")
+
+model = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=api_key)
 
 # Step3: Create the ReAct agent graph
 graph = create_react_agent(model, tools=tools)
