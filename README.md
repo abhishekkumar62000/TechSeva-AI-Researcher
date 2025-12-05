@@ -1,5 +1,5 @@
 
-<img width="1024" height="1024" alt="Logo" src="https://github.com/user-attachments/assets/5a996d89-cca3-4b57-a6a7-19a99485af23" />
+<img width="815" height="689" alt="Logo" src="https://github.com/user-attachments/assets/225f1ade-d37a-4c94-9340-75532048a337" />
 
 
 <img width="1916" height="1080" alt="App Page" src="https://github.com/user-attachments/assets/7a9cce1e-347d-41b6-8d40-357f74034e85" />
